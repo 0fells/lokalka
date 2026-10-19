@@ -114,6 +114,12 @@ var (
 	procTextExtent       = gdi32.NewProc("GetTextExtentPoint32W")
 	procLoadImage        = user32.NewProc("LoadImageW")
 	procDrawIconEx       = user32.NewProc("DrawIconEx")
+	procIsWindow         = user32.NewProc("IsWindow")
+	procWindowThread     = user32.NewProc("GetWindowThreadProcessId")
+	procCurrentThread    = k32.NewProc("GetCurrentThreadId")
+
+	uiSource   = map[uintptr]string{}
+	uiLangFlip uint32
 
 	appIcons   = map[int]uintptr{}
 	brandMarks = map[uintptr]bool{}
@@ -151,6 +157,7 @@ var (
 	keepProc     []uintptr
 	statusSource func() vpn.ClientStatus
 	hwndCopyIP   uintptr
+	hwndLang     uintptr
 	clientIPs    []string
 	myIP         string
 	clientNote   string
@@ -233,7 +240,8 @@ func askPassword() (string, bool) {
 		return "", false
 	}
 	pwdHwnd = hwnd
-	brandMark(hwnd, 28, 22, 368, 34)
+	brandMark(hwnd, 28, 22, 368-langW-12, 34)
+	langButton(hwnd, 28, 24, 30)
 	pwdHint = control(hwnd, "STATIC", "Пароль сети", 28, 68, 368, 22, wsChild|wsVisible, 0, admFont)
 	pwdEdit = makeField(hwnd, "", 28, 94, 368, 40, true, 0, "")
 	admButton(hwnd, "Войти", 28, 154, 160, 42, idOK)
@@ -264,6 +272,7 @@ func statusWindow() error {
 	hwndList = control(hwnd, "LISTBOX", "", 28, 232, 560, 220, prettyList, idClientList, admFont)
 	hwndCopyIP = admButton(hwnd, "Скопировать IP", 398, 124, 170, 40, idCopyMyIP)
 	hwndExit = admButton(hwnd, "Выход", 240, 480, 150, 40, idExit)
+	hwndLang = langButton(hwnd, 28, 20, 30)
 	layoutMain(hwnd)
 	procSetTimer.Call(hwnd, 1, 1000, 0)
 	refreshStatus()
@@ -298,7 +307,7 @@ func newWindow(class string, proc func(uintptr, uintptr, uintptr, uintptr) uintp
 		iconSm:     appIcon(int(smallIcon)),
 	}
 	procRegisterClass.Call(uintptr(unsafe.Pointer(&wc)))
-	titlePtr, _ := syscall.UTF16PtrFromString(title)
+	titlePtr, _ := syscall.UTF16PtrFromString(tr(title))
 	style := uintptr(wsOverlappedWindow | wsClipChildren)
 	if !resizable {
 		style = wsFixedWindow | wsClipChildren
@@ -315,6 +324,9 @@ func newWindow(class string, proc func(uintptr, uintptr, uintptr, uintptr) uintp
 		x, y, width, height,
 		owner, 0, instance, 0,
 	)
+	if hwnd != 0 {
+		uiSource[hwnd] = title
+	}
 	return hwnd
 }
 
@@ -392,7 +404,12 @@ func centerOver(owner uintptr, w, h int32) (int32, int32, bool) {
 
 func control(parent uintptr, className, text string, x, y, w, h int, style uintptr, id uintptr, font uintptr) uintptr {
 	classPtr, _ := syscall.UTF16PtrFromString(className)
-	textPtr, _ := syscall.UTF16PtrFromString(text)
+
+	shown := text
+	if className != "EDIT" {
+		shown = tr(text)
+	}
+	textPtr, _ := syscall.UTF16PtrFromString(shown)
 	hwnd, _, _ := procCreateWindow.Call(
 		0,
 		uintptr(unsafe.Pointer(classPtr)),
@@ -401,10 +418,69 @@ func control(parent uintptr, className, text string, x, y, w, h int, style uintp
 		uintptr(x), uintptr(y), uintptr(w), uintptr(h),
 		parent, id, 0, 0,
 	)
+	if hwnd != 0 {
+		if className == "EDIT" {
+			delete(uiSource, hwnd)
+		} else {
+			uiSource[hwnd] = text
+		}
+	}
 	if hwnd != 0 && font != 0 {
 		procSendMessage.Call(hwnd, wmSetFont, font, 1)
 	}
 	return hwnd
+}
+
+const langW = 108
+
+func langLabel() string {
+	if currentLang() == langEN {
+		return "Русский"
+	}
+	return "English"
+}
+
+func langButton(parent uintptr, right, y, h int) uintptr {
+	var rc winRect
+	procGetClientRect.Call(parent, uintptr(unsafe.Pointer(&rc)))
+	return admButton(parent, langLabel(), int(rc.right)-right-langW, y, langW, h, idLang)
+}
+
+func toggleLang() {
+	next := langEN
+	if currentLang() == langEN {
+		next = langRU
+	}
+	setLang(next)
+	if err := saveLang(next); err != nil {
+		log.Printf("язык не сохранён: %v", err)
+	}
+	btnLabel[idLang] = langLabel()
+
+	self, _, _ := procCurrentThread.Call()
+	for hwnd, src := range uiSource {
+		if owner, _, _ := procWindowThread.Call(hwnd, 0); owner != self {
+			delete(uiSource, hwnd)
+			continue
+		}
+		if _, isField := fields[hwnd]; isField {
+			continue
+		}
+		ptr, _ := syscall.UTF16PtrFromString(tr(src))
+		procSetText.Call(hwnd, uintptr(unsafe.Pointer(ptr)))
+	}
+	for _, hwnd := range []uintptr{pwdHwnd, mainHwnd, admHwnd, dlg.hwnd} {
+		if hwnd != 0 {
+			procRedrawWindow.Call(hwnd, 0, 0, 0x0001|0x0004|0x0080|0x0100)
+		}
+	}
+}
+
+func sourceText(hwnd uintptr) string {
+	if src, ok := uiSource[hwnd]; ok {
+		return src
+	}
+	return windowText(hwnd)
 }
 
 func stockFont() uintptr {
@@ -432,6 +508,9 @@ func messageLoop() {
 }
 
 func flushUI() {
+	if atomic.SwapUint32(&uiLangFlip, 0) == 1 {
+		toggleLang()
+	}
 	if atomic.SwapUint32(&pwdClick, 0) == 1 {
 		acceptPassword()
 	}
@@ -559,7 +638,8 @@ func layoutMain(hwnd uintptr) {
 
 	const margin, cardPad = 28, 20
 	inner := width - margin*2
-	moveCtl(hwndMark, margin+brandGap, 18, inner-brandGap, 34)
+	moveCtl(hwndMark, margin+brandGap, 18, inner-brandGap-langW-12, 34)
+	moveCtl(hwndLang, margin+inner-langW, 20, langW, 30)
 	stateDot = winRect{int32(margin + 2), 67, int32(margin + 12), 77}
 	moveCtl(hwndState, margin+18, 60, inner-18, 24)
 
@@ -737,7 +817,7 @@ func paintHint(edit uintptr, hint string) {
 	old, _, _ := procSelectObject.Call(hdc, admFont)
 	procSetBkMode.Call(hdc, 1)
 	procSetTextColor.Call(hdc, rgb(0x9a, 0x94, 0x88))
-	drawUTF(hdc, hint, rc, 0x8824)
+	drawUTF(hdc, tr(hint), rc, 0x8824)
 	if old != 0 {
 		procSelectObject.Call(hdc, old)
 	}
@@ -863,7 +943,7 @@ func refreshStatus() {
 		return
 	}
 	guiSig = sig
-	if windowText(hwndState) != text {
+	if sourceText(hwndState) != text {
 		dot := stateDot
 		procInvalidateRect.Call(mainHwnd, uintptr(unsafe.Pointer(&dot)), 1)
 	}
@@ -896,7 +976,7 @@ func showError(err error) {
 }
 
 func messageBox(text string) {
-	body, _ := syscall.UTF16PtrFromString(text)
+	body, _ := syscall.UTF16PtrFromString(tr(text))
 	title, _ := syscall.UTF16PtrFromString("Lokalka")
 	procMessageBox.Call(0, uintptr(unsafe.Pointer(body)), uintptr(unsafe.Pointer(title)), 0x10)
 }
@@ -906,7 +986,7 @@ func confirmBox(text string) bool {
 }
 
 func confirmOwned(owner uintptr, text string) bool {
-	body, _ := syscall.UTF16PtrFromString(text)
+	body, _ := syscall.UTF16PtrFromString(tr(text))
 	title, _ := syscall.UTF16PtrFromString("Lokalka")
 	r, _, _ := procMessageBox.Call(owner, uintptr(unsafe.Pointer(body)), uintptr(unsafe.Pointer(title)), 0x24)
 	return r == 6
@@ -924,6 +1004,10 @@ func windowText(hwnd uintptr) string {
 func setText(hwnd uintptr, text string) {
 	if hwnd == 0 {
 		return
+	}
+	if _, isField := fields[hwnd]; !isField {
+		uiSource[hwnd] = text
+		text = tr(text)
 	}
 	ptr, _ := syscall.UTF16PtrFromString(text)
 	procSetText.Call(hwnd, uintptr(unsafe.Pointer(ptr)))

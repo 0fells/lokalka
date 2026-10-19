@@ -23,7 +23,6 @@ var (
 	procCreateDIBSection = gdi32.NewProc("CreateDIBSection")
 	procGdiFlush         = gdi32.NewProc("GdiFlush")
 	procDeleteDC         = gdi32.NewProc("DeleteDC")
-	procIsWindow         = user32.NewProc("IsWindow")
 )
 
 type bitmapInfoHeader struct {
@@ -45,6 +44,8 @@ func snapshotDir(t *testing.T) string {
 	if dir == "" {
 		t.Skip("LOKALKA_UI_SNAPSHOT не задан")
 	}
+
+	setLang(langRU)
 	if err := os.MkdirAll(dir, 0o755); err != nil {
 		t.Fatal(err)
 	}
@@ -109,24 +110,28 @@ func allBlack(buf []byte) bool {
 
 func fakeAdminNets() []proto.AdminNet {
 	now := time.Now().Unix()
+	pc2, pc3, alex, pete, mary := "пк-2", "пк-3", "Вася", "Петя", "Маша"
+	if currentLang() == langEN {
+		pc2, pc3, alex, pete, mary = "pc-2", "pc-3", "Alex", "Pete", "Mary"
+	}
 	return []proto.AdminNet{
 		{
 			Name:   "friends",
 			Online: 2,
 			Peers: []proto.AdminPeer{
 				{IP: "10.66.2.2", Hostname: "DESKTOP-ALEX", Endpoint: "198.51.100.24:61234", Joined: now - 3700, Path: "udp", Config: "friends"},
-				{IP: "10.66.2.3", Hostname: "NOTEBOOK-KATYA", Endpoint: "198.51.100.77:50111", Joined: now - 120, Path: "relay", Config: "пк-2"},
+				{IP: "10.66.2.3", Hostname: "NOTEBOOK-KATYA", Endpoint: "198.51.100.77:50111", Joined: now - 120, Path: "relay", Config: pc2},
 			},
 			Blocked: []proto.AdminPeer{{IP: "10.66.2.9", Hostname: "OLD-PC"}},
 			Configs: []proto.AdminCfg{
 				{ID: "a1", Label: "friends", Created: now - 86400*3, LastSeen: now - 3700, LastHost: "DESKTOP-ALEX"},
-				{ID: "a2", Label: "пк-2", Created: now - 86400, LastSeen: now - 120, LastHost: "NOTEBOOK-KATYA"},
-				{ID: "a3", Label: "пк-3", Created: now - 600},
+				{ID: "a2", Label: pc2, Created: now - 86400, LastSeen: now - 120, LastHost: "NOTEBOOK-KATYA"},
+				{ID: "a3", Label: pc3, Created: now - 600},
 			},
 			Panels: []proto.AdminPanel{
-				{ID: "p1", Label: "Вася", Created: now - 86400, LastSeen: now - 300, LastHost: "198.51.100.24", Online: true},
-				{ID: "p2", Label: "Петя", Created: now - 600},
-				{ID: "p3", Label: "Маша", Created: now - 86400*2, LastSeen: now - 7200, LastHost: "198.51.100.77", Disabled: true},
+				{ID: "p1", Label: alex, Created: now - 86400, LastSeen: now - 300, LastHost: "198.51.100.24", Online: true},
+				{ID: "p2", Label: pete, Created: now - 600},
+				{ID: "p3", Label: mary, Created: now - 86400*2, LastSeen: now - 7200, LastHost: "198.51.100.77", Disabled: true},
 			},
 		},
 		{Name: "coop", Configs: []proto.AdminCfg{{ID: "b1", Label: "coop", Created: now - 86400*20}}},
@@ -274,6 +279,106 @@ func TestFormSnapshotAndEnter(t *testing.T) {
 	if !ok || a != "friends" || b != "" {
 		t.Fatalf("Enter не отправил форму: %q %q %v", a, b, ok)
 	}
+}
+
+func TestEnglishSnapshot(t *testing.T) {
+	dir := snapshotDir(t)
+	runtime.LockOSThread()
+	defer runtime.UnlockOSThread()
+	t.Setenv("LOCALAPPDATA", t.TempDir())
+	setLang(langEN)
+	defer setLang(langRU)
+
+	admSess = nil
+	admNets = fakeAdminNets()
+	admErr = nil
+	done := make(chan struct{})
+	go func() {
+		defer close(done)
+		hwnd := waitWindow(func() uintptr { return admHwnd })
+		if hwnd == 0 {
+			t.Error("окно не появилось")
+			return
+		}
+		pokeApply(hwnd)
+		time.Sleep(700 * time.Millisecond)
+		capture(t, hwnd, filepath.Join(dir, "en-admin-1-normal.png"))
+		procMoveWindow.Call(hwnd, 40, 40, 980, 720, 1)
+		time.Sleep(700 * time.Millisecond)
+		capture(t, hwnd, filepath.Join(dir, "en-admin-2-min.png"))
+		procPostMessage.Call(hwnd, wmCommand, idAdmTabPanels, 0)
+		time.Sleep(700 * time.Millisecond)
+		capture(t, hwnd, filepath.Join(dir, "en-admin-3-panels.png"))
+		if got := windowText(admTitlePeer); got != "Who is connected · 2" {
+			t.Errorf("заголовок участников по-английски: %q", got)
+		}
+		procPostMessage.Call(hwnd, wmCommand, idLang, 0)
+		time.Sleep(700 * time.Millisecond)
+		capture(t, hwnd, filepath.Join(dir, "en-admin-4-switched-ru.png"))
+		if currentLang() != langRU {
+			t.Error("кнопка языка не переключила на русский")
+		}
+		if got := windowText(admTitlePeer); got != "Кто подключён · 2" {
+			t.Errorf("после переключения заголовок %q", got)
+		}
+		if loadLang() != langRU {
+			t.Error("выбор языка не сохранился")
+		}
+		procPostMessage.Call(hwnd, wmClose, 0, 0)
+	}()
+	if err := adminWindow(); err != nil {
+		t.Fatal(err)
+	}
+	<-done
+
+	setLang(langEN)
+	statusSource = func() vpn.ClientStatus {
+		return vpn.ClientStatus{
+			State:     "Подключено",
+			Network:   "friends",
+			Hostname:  "DESKTOP-ALEX",
+			VirtualIP: "10.66.2.2",
+			Peers: []vpn.PeerStatus{
+				{IP: "10.66.2.3", Hostname: "NOTEBOOK-KATYA", Direct: true},
+				{IP: "10.66.2.4", Hostname: "GAMER-PC", Direct: false},
+			},
+		}
+	}
+	defer func() { statusSource = nil }()
+	done = make(chan struct{})
+	go func() {
+		defer close(done)
+		hwnd := waitWindow(func() uintptr { return mainHwnd })
+		if hwnd == 0 {
+			t.Error("окно не появилось")
+			return
+		}
+		time.Sleep(1500 * time.Millisecond)
+		capture(t, hwnd, filepath.Join(dir, "en-client-1.png"))
+		if got := windowText(hwndNet); got != "Your address in network friends" {
+			t.Errorf("подпись адреса: %q", got)
+		}
+		procPostMessage.Call(hwnd, wmClose, 0, 0)
+	}()
+	if err := statusWindow(); err != nil {
+		t.Fatal(err)
+	}
+	<-done
+
+	done = make(chan struct{})
+	go func() {
+		defer close(done)
+		hwnd := waitWindow(func() uintptr { return dlg.hwnd })
+		if hwnd == 0 {
+			t.Error("окно не появилось")
+			return
+		}
+		time.Sleep(700 * time.Millisecond)
+		capture(t, hwnd, filepath.Join(dir, "en-login-1.png"))
+		procPostMessage.Call(dlg.editB, wmKeyDown, vkEscape, 0)
+	}()
+	_, _ = loginAdmin()
+	<-done
 }
 
 func syscallUTF16(s string) (*uint16, error) {

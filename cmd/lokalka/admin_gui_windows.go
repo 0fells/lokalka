@@ -51,6 +51,7 @@ const (
 	idAdmTogglePanel = 28
 	idAdmDelPanel    = 29
 	idClientList     = 40
+	idLang           = 41
 	lbnSelChange     = 1
 	lbnDblClk        = 2
 	enChange         = 0x0300
@@ -137,6 +138,7 @@ var (
 	admStatus     uintptr
 	admMark       uintptr
 	admRefresh    uintptr
+	admLang       uintptr
 	admTitleNet   uintptr
 	admTitlePeer  uintptr
 	admTitleBlock uintptr
@@ -245,7 +247,8 @@ func loginAdmin() (*vpn.AdminSession, error) {
 		return nil, errAbort
 	}
 	dlg.hwnd = hwnd
-	brandMark(hwnd, 32, 24, 400, 34)
+	brandMark(hwnd, 32, 24, 400-langW-12, 34)
+	langButton(hwnd, 32, 26, 30)
 	loginLead = control(hwnd, "STATIC", "Управление сетями", 32+brandGap, 58, 400-brandGap, 22, wsChild|wsVisible, 0, admFont)
 	control(hwnd, "STATIC", "Адрес сервера", 32, 98, 400, 22, wsChild|wsVisible, 0, admFont)
 	server := adminServerPreset()
@@ -298,6 +301,7 @@ func adminWindow() error {
 	admMark = brandMark(hwnd, 20, 14, 110+brandGap, 36)
 	admStatus = control(hwnd, "STATIC", "Загрузка...", 198, 22, 500, 24, wsChild|wsVisible|0x4000, 0, admFont)
 	admRefresh = admButton(hwnd, "Обновить", 848, 16, 148, 36, idAdmUpdate)
+	admLang = admButton(hwnd, langLabel(), 730, 16, langW, 36, idLang)
 	admTitleNet = control(hwnd, "STATIC", "Сети", 32, 82, 280, 22, wsChild|wsVisible, 0, admFontSemi)
 	admTitlePeer = control(hwnd, "STATIC", "Кто подключён", 360, 82, 280, 22, wsChild|wsVisible, 0, admFontSemi)
 	admTitleBlock = control(hwnd, "STATIC", "Отключены", 360, 320, 280, 22, wsChild|wsVisible, 0, admFontSemi)
@@ -398,9 +402,11 @@ func layoutAdmin(hwnd uintptr) {
 	paintCards = true
 	refreshW := 148
 	refreshX := width - margin - refreshW
+	langX := refreshX - 10 - langW
 	moveCtl(admMark, margin+brandGap, 16, 110, 36)
 	statusX := margin + brandGap + 126
-	moveCtl(admStatus, statusX, 24, refreshX-statusX-12, 24)
+	moveCtl(admStatus, statusX, 24, langX-statusX-12, 24)
+	moveCtl(admLang, langX, 16, langW, 36)
 	moveCtl(admRefresh, refreshX, 16, refreshW, 36)
 	placeColumn(0, x0, colW, pad, titleY, listY, listBottom, btn1, btn2, btn3)
 	placeColumn(1, x1, colW, pad, titleY, listY, listBottom, btn1, btn2, btn3)
@@ -843,7 +849,7 @@ func formatPanelLine(pn proto.AdminPanel) string {
 	}
 	switch {
 	case pn.LastSeen > 0 && !pn.Online:
-		parts = append(parts, "вход "+formatAgo(pn.LastSeen)+" назад")
+		parts = append(parts, fmt.Sprintf("вход %v назад", formatAgo(pn.LastSeen)))
 		if host := strings.TrimSpace(pn.LastHost); host != "" {
 			parts = append(parts, host)
 		}
@@ -919,7 +925,7 @@ func formatConfigLine(cfg proto.AdminCfg) string {
 	if cfg.LastSeen <= 0 {
 		return cfg.Label + "      " + "" + "      " + "входов пока не было"
 	}
-	line := cfg.Label + "      " + "" + "      " + "вход " + formatAgo(cfg.LastSeen) + " назад"
+	line := cfg.Label + "      " + "" + "      " + fmt.Sprintf("вход %v назад", formatAgo(cfg.LastSeen))
 	if host := strings.TrimSpace(cfg.LastHost); host != "" {
 		line += "      " + host
 	}
@@ -1090,7 +1096,7 @@ func deleteNetwork() {
 	if !ok {
 		return
 	}
-	if !confirmBox("Удалить сеть " + name + "?") {
+	if !confirmBox(fmt.Sprintf("Удалить сеть %s?", name)) {
 		return
 	}
 	runAdm(func() error { return admSess.DeleteNetwork(name) })
@@ -1145,7 +1151,7 @@ func submitConfig(name, label, password string) {
 			return err
 		}
 		admMu.Lock()
-		admNote = "Файл \"" + label + "\" создан"
+		admNote = fmt.Sprintf("Файл \"%s\" создан", label)
 		admNoteAt = time.Now()
 		admMu.Unlock()
 		return nil
@@ -1178,13 +1184,18 @@ func uniqueConfigLabel() string {
 			used[strings.ToLower(cfg.Label)] = true
 		}
 	}
+
+	prefix := "пк"
+	if currentLang() == langEN {
+		prefix = "pc"
+	}
 	for i := 2; i < 100; i++ {
-		cand := fmt.Sprintf("пк-%d", i)
+		cand := fmt.Sprintf("%s-%d", prefix, i)
 		if !used[strings.ToLower(cand)] {
 			return cand
 		}
 	}
-	return fmt.Sprintf("пк-%d", time.Now().Unix()%1000)
+	return fmt.Sprintf("%s-%d", prefix, time.Now().Unix()%1000)
 }
 
 func saveConfig() {
@@ -1232,7 +1243,7 @@ func saveConnection(linux bool) {
 		if err != nil {
 			admNote = err.Error()
 		} else {
-			admNote = "Файл сохранён: " + path
+			admNote = fmt.Sprintf("Файл сохранён: %s", path)
 		}
 		hwnd := admHwnd
 		admMu.Unlock()
@@ -1251,7 +1262,7 @@ func deleteConfig() {
 		paintStatus("Сначала выберите файл справа")
 		return
 	}
-	if !confirmBox("Удалить файл " + label + "?") {
+	if !confirmBox(fmt.Sprintf("Удалить файл %s?", label)) {
 		return
 	}
 	runAdm(func() error { return admSess.DeleteConfig(name, id) })
@@ -1267,7 +1278,7 @@ func disconnectPeer() {
 		paintStatus("Сначала выберите участника в среднем списке")
 		return
 	}
-	if !confirmBox("Отключить " + ip + " от сети " + name + "?\nПовторный вход будет закрыт, пока не нажмёте \"Разрешить\".") {
+	if !confirmBox(fmt.Sprintf("Отключить %s от сети %s?\nПовторный вход будет закрыт, пока не нажмёте \"Разрешить\".", ip, name)) {
 		return
 	}
 	runAdm(func() error { return admSess.Disconnect(name, ip) })
@@ -1291,7 +1302,7 @@ func disconnectAllPeers() {
 	if !ok {
 		return
 	}
-	if !confirmBox("Отключить всех в сети " + name + "?\nПовторный вход будет закрыт, пока не нажмёте \"Разрешить\".") {
+	if !confirmBox(fmt.Sprintf("Отключить всех в сети %s?\nПовторный вход будет закрыт, пока не нажмёте \"Разрешить\".", name)) {
 		return
 	}
 	runAdm(func() error { return admSess.DisconnectAll(name) })
@@ -1310,12 +1321,13 @@ func createPanel() {
 		paintStatus("Введите имя владельца панели")
 		return
 	}
+	fileName := panelFileName()
 	runAdm(func() error {
 		pf, err := admSess.CreatePanel(name, owner)
 		if err != nil {
 			return err
 		}
-		return savePanelExe(pf)
+		return savePanelExe(pf, fileName)
 	})
 }
 
@@ -1329,15 +1341,16 @@ func resetPanel() {
 		paintStatus("Сначала выберите панель в списке")
 		return
 	}
-	if !confirmBox("Выдать панели \"" + selectedPanelName() + "\" новый ключ?\nСтарый exe перестанет работать, а новый нужно отправить владельцу.") {
+	if !confirmBox(fmt.Sprintf("Выдать панели \"%s\" новый ключ?\nСтарый exe перестанет работать, а новый нужно отправить владельцу.", selectedPanelName())) {
 		return
 	}
+	fileName := panelFileName()
 	runAdm(func() error {
 		pf, err := admSess.ResetPanel(name, id)
 		if err != nil {
 			return err
 		}
-		return savePanelExe(pf)
+		return savePanelExe(pf, fileName)
 	})
 }
 
@@ -1365,7 +1378,7 @@ func deletePanel() {
 		paintStatus("Сначала выберите панель в списке")
 		return
 	}
-	if !confirmBox("Удалить панель \"" + selectedPanelName() + "\"?\nЕё exe перестанет работать.") {
+	if !confirmBox(fmt.Sprintf("Удалить панель \"%s\"?\nЕё exe перестанет работать.", selectedPanelName())) {
 		return
 	}
 	runAdm(func() error { return admSess.DeletePanel(name, id) })
@@ -1379,7 +1392,11 @@ func selectedPanelName() string {
 	return admPanelNames[i]
 }
 
-func savePanelExe(pf vpn.PanelFile) error {
+func panelFileName() string {
+	return tr("Панель %s")
+}
+
+func savePanelExe(pf vpn.PanelFile, fileName string) error {
 	exe, err := os.Executable()
 	if err != nil {
 		return err
@@ -1396,12 +1413,12 @@ func savePanelExe(pf vpn.PanelFile) error {
 		Label:     pf.Label,
 		Role:      stamp.RolePanel,
 		AdminID:   pf.ID,
-	}, "Панель "+pf.Label, ".exe", downloadPanelsDir)
+	}, fmt.Sprintf(fileName, pf.Label), ".exe", downloadPanelsDir)
 	if err != nil {
 		return err
 	}
 	admMu.Lock()
-	admNote = "Панель сохранена: " + path
+	admNote = fmt.Sprintf("Панель сохранена: %s", path)
 	admNoteAt = time.Now()
 	admMu.Unlock()
 	return nil
@@ -1412,7 +1429,7 @@ func copyNetworkPassword() {
 	if !ok {
 		return
 	}
-	if !confirmBox("Скопировать пароль сети " + name + " в буфер обмена?") {
+	if !confirmBox(fmt.Sprintf("Скопировать пароль сети %s в буфер обмена?", name)) {
 		return
 	}
 	runAdm(func() error {
@@ -1740,8 +1757,8 @@ func finishLogin() {
 
 func confirmServerKey(key []byte) {
 	server := strings.TrimSpace(dlg.a)
-	text := "Первый вход на сервер " + server + ".\n\nКлюч сервера:\n" + groupKey(vpn.FormatServerKey(key)) +
-		"\n\nСверьте его с ключом, который показала установка сервера (на сервере его выводит команда \"lokalka key\"). Ключи совпадают?"
+	text := fmt.Sprintf("Первый вход на сервер %s.\n\nКлюч сервера:\n%s\n\nСверьте его с ключом, который показала установка сервера (на сервере его выводит команда \"lokalka key\"). Ключи совпадают?",
+		server, groupKey(vpn.FormatServerKey(key)))
 	if !confirmOwned(dlg.hwnd, text) {
 		setText(dlg.hint, "Вход отменён: ключ сервера не подтверждён")
 		return
@@ -1749,7 +1766,7 @@ func confirmServerKey(key []byte) {
 	dlg.pin, dlg.pinServer = key, server
 	startLogin(dlg.hwnd)
 	if err := saveAdminServer(server, key); err != nil {
-		setText(dlg.hint, "Подключение... Ключ не удалось запомнить ("+err.Error()+"), при следующем входе он будет показан снова")
+		setText(dlg.hint, fmt.Sprintf("Подключение... Ключ не удалось запомнить (%v), при следующем входе он будет показан снова", err))
 	}
 }
 
@@ -1984,6 +2001,11 @@ func themeProc(hwnd, msg, wparam, lparam uintptr) (uintptr, bool) {
 	switch msg {
 	case wmCommand:
 		code := wparam >> 16
+		if wparam&0xffff == idLang && code == 0 {
+			atomic.StoreUint32(&uiLangFlip, 1)
+			procPostMessage.Call(hwnd, wmPoke, 0, 0)
+			return 0, true
+		}
 		if _, ok := fields[lparam]; ok && (code == enSetFocus || code == enKillFocus || code == enChange) {
 			atomic.StoreUint32(&uiFields, 1)
 			procPostMessage.Call(hwnd, wmPoke, 0, 0)
@@ -2025,7 +2047,7 @@ func themeProc(hwnd, msg, wparam, lparam uintptr) (uintptr, bool) {
 		if hwnd == mainHwnd && paintMain {
 			fillBox(wparam, ipCard, rgb(0xff, 0xff, 0xff), rgb(0xe4, 0xdd, 0xd0))
 			fillBox(wparam, mainCard, rgb(0xff, 0xff, 0xff), rgb(0xe4, 0xdd, 0xd0))
-			c := dotColor(windowText(hwndState))
+			c := dotColor(sourceText(hwndState))
 			fillRound(wparam, stateDot, c, c, 10)
 		}
 		paintBrand(hwnd, wparam)
@@ -2076,7 +2098,7 @@ func staticLook(hwnd uintptr) (uintptr, uintptr) {
 		}
 		return tone, bgBrush
 	case hwndState:
-		return stateColor(windowText(hwnd)), bgBrush
+		return stateColor(sourceText(hwnd)), bgBrush
 	default:
 		return ink, bgBrush
 	}
@@ -2137,7 +2159,7 @@ func drawAdmButton(d *drawItem) {
 	procSetTextColor.Call(d.hdc, text)
 	procSetBkMode.Call(d.hdc, 1)
 	old, _, _ := procSelectObject.Call(d.hdc, admFont)
-	label := btnLabel[uintptr(d.ctlID)]
+	label := tr(btnLabel[uintptr(d.ctlID)])
 	if label == "" {
 		label = " "
 	}
@@ -2188,7 +2210,7 @@ func buttonKind(id uintptr) int {
 		}
 		return 1
 	case idAdmUpdate, idAdmPass, idAdmCopyPass, idAdmNewCfg, idAdmLinux, idAdmAllow, idAdmRename, idExit, idCopyMyIP,
-		idAdmResetPanel, idAdmTogglePanel:
+		idAdmResetPanel, idAdmTogglePanel, idLang:
 		return 1
 	default:
 		return 0
@@ -2245,12 +2267,13 @@ func drawListRow(d *drawItem) {
 		solidFill(d.hdc, bar, rgb(0x1f, 0x6b, 0x4a))
 	}
 	procSetBkMode.Call(d.hdc, 1)
+
 	parts := strings.Split(text, "      ")
 	tall := d.bottom-d.top >= 48
 	if isHintLine(text) {
 		procSetTextColor.Call(d.hdc, rgb(0x8a, 0x84, 0x78))
 		old, _, _ := procSelectObject.Call(d.hdc, admFont)
-		drawUTF(d.hdc, text, winRect{d.left + 16, d.top, d.right - 12, d.bottom}, 0x8824)
+		drawUTF(d.hdc, tr(text), winRect{d.left + 16, d.top, d.right - 12, d.bottom}, 0x8824)
 		if old != 0 {
 			procSelectObject.Call(d.hdc, old)
 		}
@@ -2260,7 +2283,7 @@ func drawListRow(d *drawItem) {
 		drawTallPeerRow(d, parts)
 		return
 	}
-	name := parts[0]
+	name := trName(parts[0])
 	procSetTextColor.Call(d.hdc, rgb(0x1c, 0x19, 0x15))
 	old, _, _ := procSelectObject.Call(d.hdc, admFontSemi)
 	textRC := winRect{d.left + 16, d.top, d.right - 12, d.bottom}
@@ -2281,17 +2304,25 @@ func drawListRow(d *drawItem) {
 		}
 		procSetTextColor.Call(d.hdc, partColor(part))
 		procSelectObject.Call(d.hdc, admFont)
-		w := textWidth(d.hdc, part)
+		shown := tr(part)
+		w := textWidth(d.hdc, shown)
 		partRC := winRect{x, d.top, x + w, d.bottom}
 		if partRC.right > d.right-12 {
 			partRC.right = d.right - 12
 		}
-		drawUTF(d.hdc, part, partRC, 0x8824)
+		drawUTF(d.hdc, shown, partRC, 0x8824)
 		x += w + 18
 	}
 	if old != 0 {
 		procSelectObject.Call(d.hdc, old)
 	}
+}
+
+func trName(s string) string {
+	if s == "без имени" {
+		return tr(s)
+	}
+	return s
 }
 
 func partColor(part string) uintptr {
@@ -2314,7 +2345,7 @@ func drawTallPeerRow(d *drawItem, parts []string) {
 
 	old, _, _ := procSelectObject.Call(d.hdc, admFontSemi)
 	procSetTextColor.Call(d.hdc, ink)
-	ip := parts[0]
+	ip := trName(parts[0])
 	ipW := textWidth(d.hdc, ip)
 	ipRC := topRC
 	ipRC.right = ipRC.left + ipW
@@ -2328,7 +2359,7 @@ func drawTallPeerRow(d *drawItem, parts []string) {
 		procSetTextColor.Call(d.hdc, muted)
 		hostRC := topRC
 		hostRC.left = ipRC.right + 12
-		drawUTF(d.hdc, parts[1], hostRC, 0x8824)
+		drawUTF(d.hdc, trName(parts[1]), hostRC, 0x8824)
 	}
 
 	x := botRC.left
@@ -2338,12 +2369,13 @@ func drawTallPeerRow(d *drawItem, parts []string) {
 			break
 		}
 		procSetTextColor.Call(d.hdc, partColor(part))
-		w := textWidth(d.hdc, part)
+		shown := tr(part)
+		w := textWidth(d.hdc, shown)
 		partRC := winRect{x, botRC.top, x + w, botRC.bottom}
 		if partRC.right > botRC.right {
 			partRC.right = botRC.right
 		}
-		drawUTF(d.hdc, part, partRC, 0x8824)
+		drawUTF(d.hdc, shown, partRC, 0x8824)
 		x += w + 14
 	}
 	if old != 0 {

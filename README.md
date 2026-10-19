@@ -14,7 +14,8 @@
 </p>
 
 <p align="center">
-  <img src="docs/client.png" width="420" alt="Окно клиента / Client window">
+  <img src="docs/client.png" width="380" alt="Окно клиента на русском">
+  <img src="docs/client-en.png" width="380" alt="Client window in English">
 </p>
 
 # Русский
@@ -30,6 +31,7 @@
 - **Админка в обычном окне Windows.** Сети, кто сейчас подключён, отключение и возврат участников, файлы для входа.
 - **Панели для помощников.** Можно выдать человеку отдельный exe, который управляет только одной сетью: видит участников и выпускает файлы входа, но не трогает пароль и другие сети.
 - **Стабильные адреса.** Один и тот же компьютер всегда получает в сети тот же IP.
+- **Русский и английский.** Язык окон переключается кнопкой в углу окна сразу, без перезапуска. При первом запуске он берётся из языка Windows, потом запоминается на компьютере.
 - **Только стандартная библиотека Go.** Без сторонних зависимостей и без CGO.
 
 <p align="center">
@@ -165,7 +167,7 @@ scripts/            сборка и загрузка wintun
 - Отключение участника привязано к имени компьютера. Выданные адреса не освобождаются: сеть рассчитана на компанию друзей, а не на сотни разных компьютеров.
 - Ключи участников раздаёт сервер, поэтому ему нужно доверять. Это ваш сервер.
 - До 64 участников онлайн и до 20 файлов входа в сети.
-- Окна есть только в Windows. В Linux есть консольный клиент и сервер.
+- Окна есть только в Windows. В Linux есть консольный клиент и сервер, они пишут по-русски, как и журнал сервера и веб-админка.
 
 ## Лицензия
 
@@ -179,8 +181,6 @@ scripts/            сборка и загрузка wintun
 
 A friend runs the `.exe` you sent them, confirms the administrator prompt, and their computer joins the same local network as everyone else: addresses like `10.66.X.Y`, LAN game discovery and broadcast work. Internet traffic does not go through the tunnel.
 
-The interface is in Russian. Button and window names below are given in Russian with a translation.
-
 ## Features
 
 - **One file to join.** The admin app builds a ready-made `.exe` for each member with the server address, network and password inside. Nothing to configure or install.
@@ -190,10 +190,11 @@ The interface is in Russian. Button and window names below are given in Russian 
 - **Admin app in a regular Windows window.** Networks, who is connected right now, kicking and readmitting members, join files.
 - **Panels for helpers.** You can give someone a separate exe that manages just one network: it sees members and issues join files, but cannot touch the password or other networks.
 - **Stable addresses.** The same computer always gets the same IP in a network.
+- **English and Russian.** The button in the window corner switches the language instantly, without a restart. On first launch the language follows Windows, then the choice is remembered on the computer.
 - **Go standard library only.** No third-party dependencies and no CGO.
 
 <p align="center">
-  <img src="docs/admin.png" width="760" alt="Admin app: networks, members and join files">
+  <img src="docs/admin-en.png" width="760" alt="Admin app: networks, members and join files">
 </p>
 
 ## How it works
@@ -244,17 +245,17 @@ Download `Lokalka.exe` from the [release](https://github.com/0fells/lokalka/rele
 
 ### 3. Networks and files for friends
 
-1. "Создать сеть" (Create network): a name (Latin letters, digits, `_`, `-`) and a password.
-2. In the "Файлы для входа" (Join files) card click "Новый файл" (New file), then "Скачать exe" (Download exe). The file appears in the `download` folder next to `Lokalka.exe`.
+1. "New network": a name (Latin letters, digits, `_`, `-`) and a password.
+2. In the "Join files" card click "New file", then "Download exe". The file appears in the `download` folder next to `Lokalka.exe`.
 3. Send this exe to a friend. They run it, click "Yes" in the Windows prompt, and they are in the network.
 
 <p align="center">
-  <img src="docs/admin-panels.png" width="760" alt='"Panels" tab: access to one network for a helper'>
+  <img src="docs/admin-panels-en.png" width="760" alt='"Panels" tab: access to one network for a helper'>
 </p>
 
 ### Linux client
 
-"Скачать Linux" (Download Linux) in the admin app builds the same kind of join file for Linux (this requires `lokalka-linux-amd64` from the release next to `Lokalka.exe`):
+"Download Linux" in the admin app builds the same kind of join file for Linux (this requires `lokalka-linux-amd64` from the release next to `Lokalka.exe`):
 
 ```sh
 chmod +x Name-linux-amd64
@@ -325,7 +326,7 @@ A join file is a copy of the program with JSON appended to its end: the server a
 - Kicking a member is tied to the computer name. Assigned addresses are not released: a network is meant for a group of friends, not hundreds of different computers.
 - The server hands out member keys, so you have to trust it. It is your server.
 - Up to 64 members online and up to 20 join files per network.
-- The graphical interface is Windows-only. On Linux there is a console client and the server.
+- The graphical interface is Windows-only. On Linux there is a console client and the server; they, like the server log and the web admin, speak Russian only.
 
 ## License
 

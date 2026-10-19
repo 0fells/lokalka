@@ -142,10 +142,10 @@ Port `8756` does **not** need to be opened and must not be: the web admin has no
 
 ## First login to the admin app
 
-1. Download `Lokalka.exe` from the [release](https://github.com/0fells/lokalka/releases) to your Windows computer. If you need the "Скачать Linux" (Download Linux) button, put `lokalka-linux-amd64` next to it.
+1. Download `Lokalka.exe` from the [release](https://github.com/0fells/lokalka/releases) to your Windows computer. If you need the "Download Linux" button, put `lokalka-linux-amd64` next to it.
 2. Run it and enter the server address (`IP:51820`) and the admin password.
-3. On first login, before sending the password, the admin app shows the server key. Compare it with the key printed by the installer (or run `sudo /usr/local/bin/lokalka key --data /var/lib/lokalka/state.json` on the server). If it matches, click "Да" (Yes): the admin app remembers the key and embeds it in every join file. If the key later does not match, someone is trying to connect you to a different server, and the password will not be sent. If you reinstalled the server from scratch yourself, delete `%LOCALAPPDATA%\Lokalka\admin.json`.
-4. Create a network, then a join file, and click "Скачать exe" (Download exe). The file appears in the `download` folder next to `Lokalka.exe`; that is the file to send to a friend.
+3. On first login, before sending the password, the admin app shows the server key. Compare it with the key printed by the installer (or run `sudo /usr/local/bin/lokalka key --data /var/lib/lokalka/state.json` on the server). If it matches, click "Yes": the admin app remembers the key and embeds it in every join file. If the key later does not match, someone is trying to connect you to a different server, and the password will not be sent. If you reinstalled the server from scratch yourself, delete `%LOCALAPPDATA%\Lokalka\admin.json`.
+4. Create a network, then a join file, and click "Download exe". The file appears in the `download` folder next to `Lokalka.exe`; that is the file to send to a friend.
 
 There is also a fallback, the web admin through an SSH tunnel:
 
@@ -193,13 +193,11 @@ sudo systemctl daemon-reload
 
 ## Troubleshooting
 
-The program's messages are in Russian; a translation is given in parentheses.
-
 | Symptom | What to check |
 |---|---|
-| The client says "сервер недоступен" (server unreachable) | Whether the TCP port is open on the server and in the hosting panel: `nc -vz IP 51820` from another computer. Whether the service is running: `systemctl status lokalka` |
-| Connected, members are visible, but the game and `ping 10.66.X.Y` do not get through, and the admin app shows "нет UDP" (no UDP) | The UDP port is closed on the server or in the hosting panel. TCP carries only login and the member list; the packets themselves go over UDP, both direct and through the server |
-| "у сервера не задан публичный адрес" (the server has no public address) when creating a file | `LOKALKA_PUBLIC` (`--public`) is not set |
-| "Ключ сервера не совпал с запомненным" (the server key does not match the remembered one) | The server was reinstalled with a new `state.json`. If you did it, delete `%LOCALAPPDATA%\Lokalka\admin.json`; if not, do not log in |
+| The client says "the server is unreachable" | Whether the TCP port is open on the server and in the hosting panel: `nc -vz IP 51820` from another computer. Whether the service is running: `systemctl status lokalka` |
+| Connected, members are visible, but the game and `ping 10.66.X.Y` do not get through, and the admin app shows "no UDP" | The UDP port is closed on the server or in the hosting panel. TCP carries only login and the member list; the packets themselves go over UDP, both direct and through the server |
+| "the server address must look like host:port" when creating a file | `LOKALKA_PUBLIC` (`--public`) is not set |
+| "The server key does not match the remembered one" | The server was reinstalled with a new `state.json`. If you did it, delete `%LOCALAPPDATA%\Lokalka\admin.json`; if not, do not log in |
 | The service does not start | `journalctl -u lokalka -n 50`. Common causes: the port is in use, no permissions on `/var/lib/lokalka`, the admin password is shorter than 8 characters |
 | The game does not see a friend in "LAN search" | Some games search only their physical network. Try connecting by the IP shown in the Lokalka window (`10.66.X.Y`) |

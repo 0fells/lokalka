@@ -14,7 +14,7 @@ import (
 	"unicode/utf16"
 )
 
-const version = "1.0.1"
+const version = "1.1.0"
 
 var iconSizes = []int{16, 20, 24, 32, 40, 48, 64, 256}
 
