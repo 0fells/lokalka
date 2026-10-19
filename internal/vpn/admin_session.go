@@ -3,6 +3,8 @@ package vpn
 import (
 	"errors"
 	"net"
+	"strconv"
+	"strings"
 	"sync"
 	"time"
 
@@ -47,6 +49,26 @@ func DialAdmin(addr, password string, pin []byte) (*AdminSession, error) {
 
 func NewPanelSession(addr, network, id, secret string, pin []byte) *AdminSession {
 	return &AdminSession{addr: addr, password: secret, pin: pin, panelNet: network, panelID: id}
+}
+
+const DefaultPort = "51820"
+
+func ServerAddr(addr string) (string, error) {
+	addr = strings.TrimSpace(addr)
+	if addr == "" {
+		return "", errors.New("введите адрес сервера")
+	}
+	host, port, err := net.SplitHostPort(addr)
+	if err != nil {
+		host, port = strings.Trim(addr, "[]"), DefaultPort
+	}
+	if host == "" || strings.ContainsAny(host, " /\\") {
+		return "", errors.New("адрес сервера: укажите IP или имя, например 203.0.113.10:51820")
+	}
+	if n, err := strconv.Atoi(port); err != nil || n < 1 || n > 65535 {
+		return "", errors.New("адрес сервера: неверный порт")
+	}
+	return net.JoinHostPort(host, port), nil
 }
 
 func ProbeServerKey(addr string) ([]byte, error) {

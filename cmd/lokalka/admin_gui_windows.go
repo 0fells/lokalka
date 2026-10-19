@@ -1639,7 +1639,15 @@ func startLogin(hwnd uintptr) {
 	if dlg.dialing {
 		return
 	}
-	server := strings.TrimSpace(dlg.a)
+	server, err := vpn.ServerAddr(dlg.a)
+	if err != nil {
+		setText(dlg.hint, err.Error())
+		return
+	}
+	if server != strings.TrimSpace(dlg.a) {
+		dlg.a = server
+		setText(dlg.editA, server)
+	}
 	password := dlg.b
 	if password == "" {
 		setText(dlg.hint, "Введите пароль")

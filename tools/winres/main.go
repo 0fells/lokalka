@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"encoding/binary"
 	"flag"
+	"fmt"
 	"image"
 	"image/color"
 	"image/png"
@@ -13,7 +14,7 @@ import (
 	"unicode/utf16"
 )
 
-const version = "1.0.0"
+const version = "1.0.1"
 
 var iconSizes = []int{16, 20, 24, 32, 40, 48, 64, 256}
 
@@ -194,9 +195,11 @@ func dib(img *image.NRGBA) []byte {
 func versionInfo() []byte {
 	fixed := binary.LittleEndian.AppendUint32(nil, 0xFEEF04BD)
 	fixed = binary.LittleEndian.AppendUint32(fixed, 0x00010000)
+	var v [3]uint32
+	fmt.Sscanf(version, "%d.%d.%d", &v[0], &v[1], &v[2])
 	for i := 0; i < 2; i++ {
-		fixed = binary.LittleEndian.AppendUint32(fixed, 0x00010000)
-		fixed = binary.LittleEndian.AppendUint32(fixed, 0)
+		fixed = binary.LittleEndian.AppendUint32(fixed, v[0]<<16|v[1])
+		fixed = binary.LittleEndian.AppendUint32(fixed, v[2]<<16)
 	}
 	fixed = binary.LittleEndian.AppendUint32(fixed, 0x3F)
 	fixed = binary.LittleEndian.AppendUint32(fixed, 0)

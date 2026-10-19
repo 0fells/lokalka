@@ -167,3 +167,22 @@ func TestStalePunchIgnored(t *testing.T) {
 		t.Fatal("пакет с чужого адреса продлил прямую связь")
 	}
 }
+
+func TestServerAddr(t *testing.T) {
+	cases := map[string]string{
+		"203.0.113.10":         "203.0.113.10:51820",
+		" 203.0.113.10:40000 ": "203.0.113.10:40000",
+		"vpn.example.com":      "vpn.example.com:51820",
+		"[2001:db8::1]:51820":  "[2001:db8::1]:51820",
+	}
+	for in, want := range cases {
+		if got, err := ServerAddr(in); err != nil || got != want {
+			t.Errorf("%q: %q %v, ждали %q", in, got, err, want)
+		}
+	}
+	for _, bad := range []string{"", "203.0.113.10:99999", "http://203.0.113.10", "203.0.113.10:abc"} {
+		if got, err := ServerAddr(bad); err == nil {
+			t.Errorf("%q принят как %q", bad, got)
+		}
+	}
+}
