@@ -1,4 +1,8 @@
 <p align="center">
+  <b>Русский</b> | <a href="README.en.md">English</a>
+</p>
+
+<p align="center">
   <img src="docs/icon.png" width="96" alt="">
 </p>
 
@@ -73,7 +77,7 @@ curl -fsSL https://raw.githubusercontent.com/0fells/lokalka/main/scripts/install
 
 ### 2. Админка
 
-Скачайте `Lokalka.exe` из [релиза](https://github.com/0fells/lokalka/releases) на компьютер с Windows и запустите. Введите адрес сервера (`IP:51820`) и пароль админки. При первом входе админка, ещё не отправив пароль, покажет ключ сервера: сверьте его с тем, что напечатала установка, и подтвердите.
+Скачайте `Lokalka.exe` из [релиза](https://github.com/0fells/lokalka/releases) на компьютер с Windows и запустите. Введите адрес сервера (`IP:51820`, порт можно не указывать) и пароль админки. При первом входе админка, ещё не отправив пароль, покажет ключ сервера: сверьте его с тем, что напечатала установка, и подтвердите.
 
 ### 3. Сети и файлы для друзей
 
