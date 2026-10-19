@@ -1,0 +1,7 @@
+/admin/
+data/
+*.exe
+wintun.dll
+*.zip
+*.tmp
+.ui-shots/

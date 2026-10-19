@@ -1,0 +1,379 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lokalka</title>
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 256 256'%3E%3Crect x='6' y='6' width='244' height='244' rx='58' fill='%231f6b4a'/%3E%3Cg fill='%23f4f1ea' stroke='%23f4f1ea' stroke-width='20'%3E%3Cpath d='M128 64L66 166H190Z' fill='none'/%3E%3Ccircle cx='128' cy='64' r='34' stroke='none'/%3E%3Ccircle cx='66' cy='166' r='34' stroke='none'/%3E%3Ccircle cx='190' cy='166' r='34' stroke='none'/%3E%3C/g%3E%3C/svg%3E">
+  <style>
+    :root { color-scheme: light; }
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font: 16px/1.45 "Segoe UI", sans-serif;
+      background: #f4f1ea;
+      color: #1c1915;
+    }
+    main { max-width: 760px; margin: 0 auto; padding: 32px 20px 64px; }
+    h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.03em; }
+    h1.brand { display: flex; align-items: center; gap: 10px; }
+    h2 { font-size: 13px; font-weight: 650; margin: 16px 0 8px; color: #5c564c; }
+    .lead, .meta { margin: 0; color: #5c564c; }
+    .lead { margin-bottom: 4px; }
+    .meta { margin-bottom: 28px; min-height: 1.45em; }
+    form.card, .card {
+      background: #fff;
+      border: 1px solid #e4ddd0;
+      border-radius: 12px;
+      padding: 16px;
+      margin-bottom: 16px;
+    }
+    label { display: block; font-size: 13px; margin-bottom: 12px; }
+    input {
+      display: block;
+      width: 100%;
+      height: 38px;
+      margin-top: 4px;
+      padding: 0 10px;
+      border: 1px solid #d5cec2;
+      border-radius: 8px;
+      font: inherit;
+      background: #fff;
+    }
+    button, a.btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      height: 38px;
+      min-width: 148px;
+      padding: 0 14px;
+      border: 0;
+      border-radius: 8px;
+      background: #1f6b4a;
+      color: #fff;
+      font: inherit;
+      line-height: 1;
+      white-space: nowrap;
+      text-decoration: none;
+      cursor: pointer;
+    }
+    button.danger, a.danger { background: #8d3b32; }
+    button.small { background: #8a5a2a; }
+    .line {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+    }
+    .actions { display: flex; justify-content: flex-end; gap: 8px; }
+    .actions .btn, .actions button { min-width: 112px; }
+    .peer {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 0;
+      border-top: 1px solid #eee6da;
+    }
+    .who { min-width: 0; }
+    .who code { font-family: Consolas, monospace; }
+    .passrow, .cfgrow {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 8px;
+      align-items: center;
+    }
+    .passrow { margin-top: 12px; }
+    .passrow input, .cfgrow input { margin: 0; }
+    .split { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 8px; }
+    .block { margin-top: 8px; padding-top: 4px; border-top: 1px solid #eee6da; }
+    .hint { margin: 0 0 8px; }
+    .cfg {
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) auto;
+      gap: 12px;
+      align-items: center;
+      padding: 8px 0;
+    }
+    .cfg + .cfg { border-top: 1px solid #f3eee6; }
+    .muted { color: #6d675d; }
+    .error { color: #8d3b32; min-height: 1.2em; margin: 12px 0 0; }
+    .warn {
+      margin: 0 0 16px;
+      padding: 10px 12px;
+      border-radius: 8px;
+      background: #f6e7d4;
+      color: #6a4314;
+    }
+  </style>
+</head>
+<body>
+  <main>
+    <h1 class="brand"><svg viewBox="0 0 256 256" width="34" height="34" aria-hidden="true"><defs><linearGradient id="g" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a825d"/><stop offset="1" stop-color="#18573c"/></linearGradient></defs><rect x="6" y="6" width="244" height="244" rx="58" fill="url(#g)"/><g stroke="#f4f1ea" stroke-width="13" fill="#f4f1ea"><path d="M128 64L66 166H190Z" fill="none"/><circle cx="128" cy="64" r="27" stroke="none"/><circle cx="66" cy="166" r="27" stroke="none"/><circle cx="190" cy="166" r="27" stroke="none"/></g></svg><span>Lokalka</span></h1>
+    <p class="lead">Локальная сеть для игр с друзьями через этот сервер. Компьютеры одной сети видят друг друга по адресам 10.66.*.*.</p>
+    <p class="meta" id="meta"></p>
+    <p class="warn" id="warn" hidden></p>
+    <form id="create" class="card">
+      <label>Имя сети
+        <input name="name" required maxlength="32" pattern="[A-Za-z0-9_-]{1,32}" placeholder="friends" autocomplete="off">
+      </label>
+      <label>Пароль
+        <input name="password" type="password" required minlength="4" autocomplete="new-password">
+      </label>
+      <button type="submit">Создать сеть</button>
+      <p class="error" id="err"></p>
+    </form>
+    <div id="list"></div>
+  </main>
+  <script>
+    const list = document.getElementById("list");
+    const err = document.getElementById("err");
+    const meta = document.getElementById("meta");
+    const warn = document.getElementById("warn");
+    let publicAddr = "";
+    let lastNets = "";
+
+    function typing() {
+      const el = document.activeElement;
+      return !!(el && el.closest && el.closest("#list") && el.tagName === "INPUT");
+    }
+
+    function when(unix) {
+      if (!unix) return "";
+      return new Date(unix * 1000).toLocaleString("ru-RU", {
+        day: "2-digit", month: "2-digit", year: "numeric", hour: "2-digit", minute: "2-digit"
+      });
+    }
+
+    async function refresh(force) {
+      const info = await fetch("/api/info").then((r) => r.json());
+      publicAddr = info.public || "";
+      meta.textContent = publicAddr ? "Адрес для клиентов: " + publicAddr : "";
+      if (publicAddr) {
+        warn.hidden = true;
+        warn.textContent = "";
+      } else {
+        warn.hidden = false;
+        warn.textContent = "Сервер запущен без адреса для клиентов. Скачивание конфигов не сработает, пока не указан --public.";
+      }
+      if (!force && typing()) return;
+      const res = await fetch("/api/networks");
+      const nets = await res.json();
+      const sig = JSON.stringify(nets);
+      if (sig === lastNets) return;
+      lastNets = sig;
+      list.replaceChildren();
+      if (!nets.length) {
+        const empty = document.createElement("p");
+        empty.className = "muted";
+        empty.textContent = "Сетей пока нет.";
+        list.appendChild(empty);
+        return;
+      }
+      for (const net of nets) renderNet(net);
+    }
+
+    function renderNet(net) {
+      const card = document.createElement("section");
+      card.className = "card";
+
+      const row = document.createElement("div");
+      row.className = "line";
+      const title = document.createElement("strong");
+      title.textContent = net.name + " · онлайн " + net.online;
+      const del = document.createElement("button");
+      del.className = "danger";
+      del.type = "button";
+      del.textContent = "Удалить";
+      del.onclick = async () => {
+        if (!confirm("Удалить сеть " + net.name + "?")) return;
+        await fetch("/api/networks/" + encodeURIComponent(net.name), { method: "DELETE" });
+        refresh(true);
+      };
+      row.append(title, del);
+      card.appendChild(row);
+
+      if (!net.peers || !net.peers.length) {
+        const p = document.createElement("p");
+        p.className = "muted";
+        p.textContent = "Никого нет в сети.";
+        card.appendChild(p);
+      } else {
+        for (const peer of net.peers) {
+          const line = document.createElement("div");
+          line.className = "peer";
+          const info = document.createElement("div");
+          info.className = "who";
+          const addr = document.createElement("code");
+          addr.textContent = peer.ip;
+          info.append(addr, document.createTextNode("  " + peer.hostname));
+          const ext = document.createElement("div");
+          ext.className = "muted";
+          ext.textContent = peer.endpoint ? "внешний " + peer.endpoint : "внешний адрес ещё не виден";
+          info.appendChild(ext);
+          const kick = document.createElement("button");
+          kick.className = "small";
+          kick.type = "button";
+          kick.textContent = "Отключить";
+          kick.onclick = async () => {
+            await fetch("/api/networks/" + encodeURIComponent(net.name) + "/peers/" + encodeURIComponent(peer.ip), { method: "DELETE" });
+            refresh(true);
+          };
+          line.append(info, kick);
+          card.appendChild(line);
+        }
+      }
+
+      const block = document.createElement("div");
+      block.className = "block";
+      const heading = document.createElement("h2");
+      heading.textContent = "Конфиги подключения";
+      const hint = document.createElement("p");
+      hint.className = "muted hint";
+      hint.textContent = "Скачанный файл кладут рядом с программой Lokalka или перетаскивают на него.";
+      block.append(heading, hint);
+
+      const configs = net.configs || [];
+      if (!configs.length) {
+        const empty = document.createElement("p");
+        empty.className = "muted";
+        empty.textContent = "Конфигов пока нет.";
+        block.appendChild(empty);
+      }
+      for (const cfg of configs) {
+        const line = document.createElement("div");
+        line.className = "cfg";
+        const info = document.createElement("div");
+        info.className = "who";
+        const name = document.createElement("strong");
+        name.textContent = cfg.label;
+        info.appendChild(name);
+        const date = document.createElement("div");
+        date.className = "muted";
+        date.textContent = when(cfg.created);
+        info.appendChild(date);
+        const actions = document.createElement("div");
+        actions.className = "actions";
+        const down = document.createElement("a");
+        down.className = "btn";
+        down.textContent = "Скачать";
+        down.href = "/api/networks/" + encodeURIComponent(net.name) + "/configs/" + encodeURIComponent(cfg.id) + "/file";
+        const drop = document.createElement("button");
+        drop.className = "danger";
+        drop.type = "button";
+        drop.textContent = "Удалить";
+        drop.onclick = async () => {
+          if (!confirm("Удалить конфиг " + cfg.label + "?")) return;
+          const res = await fetch("/api/networks/" + encodeURIComponent(net.name) + "/configs/" + encodeURIComponent(cfg.id), { method: "DELETE" });
+          const body = await res.json().catch(() => ({}));
+          if (!res.ok) {
+            err.textContent = body.error || "не удалось удалить конфиг";
+            return;
+          }
+          err.textContent = "";
+          refresh(true);
+        };
+        actions.append(down, drop);
+        line.append(info, actions);
+        block.appendChild(line);
+      }
+
+      const maker = document.createElement("form");
+      maker.className = "cfgrow";
+      maker.style.marginTop = "8px";
+      const fields = document.createElement("div");
+      fields.className = configs.length ? "" : "split";
+      const label = document.createElement("input");
+      label.required = true;
+      label.maxLength = 32;
+      label.placeholder = "Имя конфига, например ноутбук";
+      label.autocomplete = "off";
+      fields.appendChild(label);
+      let secret = null;
+      if (!configs.length) {
+        secret = document.createElement("input");
+        secret.type = "password";
+        secret.required = true;
+        secret.minLength = 4;
+        secret.placeholder = "Пароль сети";
+        secret.autocomplete = "new-password";
+        fields.appendChild(secret);
+      }
+      const add = document.createElement("button");
+      add.type = "submit";
+      add.textContent = "Создать конфиг";
+      maker.append(fields, add);
+      maker.onsubmit = async (ev) => {
+        ev.preventDefault();
+        err.textContent = "";
+        const payload = { label: label.value };
+        if (secret) payload.password = secret.value;
+        const res = await fetch("/api/networks/" + encodeURIComponent(net.name) + "/configs", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok) {
+          err.textContent = body.error || "не удалось создать конфиг";
+          return;
+        }
+        refresh(true);
+      };
+      block.appendChild(maker);
+      card.appendChild(block);
+
+      const pass = document.createElement("form");
+      pass.className = "passrow";
+      const input = document.createElement("input");
+      input.type = "password";
+      input.required = true;
+      input.minLength = 4;
+      input.placeholder = "Новый пароль";
+      input.autocomplete = "new-password";
+      const save = document.createElement("button");
+      save.type = "submit";
+      save.textContent = "Сменить пароль";
+      pass.append(input, save);
+      pass.onsubmit = async (ev) => {
+        ev.preventDefault();
+        const res = await fetch("/api/networks/" + encodeURIComponent(net.name) + "/password", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ password: input.value })
+        });
+        const body = await res.json();
+        if (!res.ok) {
+          err.textContent = body.error || "не удалось сменить пароль";
+          return;
+        }
+        err.textContent = "";
+        refresh(true);
+      };
+      card.appendChild(pass);
+      list.appendChild(card);
+    }
+
+    document.getElementById("create").onsubmit = async (ev) => {
+      ev.preventDefault();
+      err.textContent = "";
+      const data = Object.fromEntries(new FormData(ev.target));
+      const res = await fetch("/api/networks", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data)
+      });
+      const body = await res.json();
+      if (!res.ok) {
+        err.textContent = body.error || "не удалось создать сеть";
+        return;
+      }
+      ev.target.reset();
+      refresh(true);
+    };
+
+    refresh();
+    setInterval(refresh, 2000);
+  </script>
+</body>
+</html>
